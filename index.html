@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Cesta košile světem</title>
+<style>
+:root{--land:#fbfdfe;--bg:#eef3f6;--panel:#fff;--ink:#12324a;--muted:#4f6676;--line:#c9d6de;--sea:#d9e8ef;--accent:#1f7a8c;--route:#d9870b;--ok:#1d7a46;--bad:#a8322d;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--land:#25465c;--bg:#0f1c26;--panel:#172a38;--ink:#e6eef3;--muted:#9fb4c2;--line:#2c4557;--sea:#1b3447;--accent:#5fc0d3;--route:#f0a93b;--ok:#5fd08d;--bad:#ff8a80}}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:980px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:1.7rem;margin:0 0 4px;letter-spacing:-.01em}
+h2{font-size:1.15rem;margin:0 0 8px}
+p{margin:0 0 10px;max-width:68ch}
+.muted{color:var(--muted)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;margin-top:16px}
+.rounds{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 0}
+.chip{border:1px solid var(--line);border-radius:999px;padding:4px 12px;font-size:.9rem;background:var(--panel)}
+.chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chip.done{border-color:var(--ok);color:var(--ok)}
+svg{width:100%;height:auto;display:block;border-radius:8px;background:var(--sea)}
+.grid line{stroke:var(--line);stroke-width:1;opacity:.55}
+.land{fill:var(--land);stroke:var(--muted);stroke-width:1;stroke-linejoin:round}
+.water{fill:var(--sea);stroke:var(--muted);stroke-width:1}
+.place circle{fill:var(--panel);stroke:var(--ink);stroke-width:2.5}
+.place.market circle{fill:var(--ink)}
+.place text{fill:var(--ink);font-size:14px;font-weight:600}
+.leg{stroke:var(--route);stroke-width:4;fill:none;stroke-linecap:round}
+.legtxt{fill:var(--ink);font-size:13px;font-weight:600;paint-order:stroke;stroke:var(--sea);stroke-width:4px}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:480px;font-size:.95rem}
+th,td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left}
+td.n,th.n{text-align:right}
+.choices{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:12px}
+label{display:block;font-weight:600;font-size:.95rem;margin-bottom:4px}
+select,textarea{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px}
+textarea{min-height:90px;resize:vertical}
+button{font:inherit;font-weight:600;border:0;border-radius:8px;padding:10px 18px;background:var(--accent);color:#fff;cursor:pointer}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) button{color:#0f1c26}}
+button.sec{background:transparent;color:var(--ink);border:1px solid var(--line)}
+button:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--route);outline-offset:2px}
+button:disabled{opacity:.45;cursor:default}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;align-items:center}
+.result{margin-top:14px;padding:12px;border-radius:8px;border:1px solid var(--line)}
+.result.ok{border-color:var(--ok)}.result.bad{border-color:var(--bad)}
+.big{font-size:1.4rem;font-weight:700}
+.split{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+.split div{background:var(--bg);border-radius:8px;padding:8px 10px}
+.split b{display:block;font-size:1.1rem}
+.hidden{display:none}
+.rounds button.chip{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-size:.9rem}
+.rounds button.chip.done{border-color:var(--ok);color:var(--ok)}
+.rounds button.chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+tr.mid td{background:color-mix(in srgb,#f2c200 28%,transparent)}
+tr.best td{background:color-mix(in srgb,var(--ok) 22%,transparent)}
+tr.mid .tag{color:var(--ink)}
+.tag{display:block;font-size:.75rem;color:var(--ok);font-weight:600}
+#log button.x{background:transparent;color:var(--muted);border:1px solid var(--line);padding:0 8px;border-radius:6px;font-size:1rem;line-height:1.4}
+.place text{paint-order:stroke;stroke:var(--land);stroke-width:3px}
+.place text.detail{font-size:12px;font-weight:500}
+</style>
+</head>
+<body>
+<main>
+<div class="rounds" id="rounds" aria-label="Kola hry"></div>
+
+<section class="panel">
+  <h2 id="roundTitle"></h2>
+  <p id="roundText"></p>
+  <svg id="map" viewBox="0 0 800 400" role="img" aria-label="Schematická mapa výrobních míst"></svg>
+  <p class="muted" style="margin-top:6px;font-size:.85rem">Zjednodušená mapa (výřez Evropy, Afriky a Asie). Vzdálenosti jsou přibližné a čísla jsou modelová.</p>
+</section>
+
+<section class="panel">
+  <h2>Ceny výroby jedné košile (Kč)</h2>
+  <div class="scroll"><table id="costTable"></table></div>
+  <h2 style="margin-top:16px">Vzdálenosti (km)</h2>
+  <div class="scroll"><table id="distTable"></table></div>
+</section>
+
+<section class="panel" id="play">
+  <h2>Vaše varianta</h2>
+  <div class="choices">
+    <div><label for="s0">1. Pěstování bavlny</label><select id="s0"></select></div>
+    <div><label for="s1">2. Výroba látky</label><select id="s1"></select></div>
+    <div><label for="s2">3. Ušití košile</label><select id="s2"></select></div>
+  </div>
+  <div class="actions">
+    <button id="check">Spočítat cenu</button>
+  </div>
+  <div id="result" class="result hidden" aria-live="polite"></div>
+</section>
+
+<section class="panel" id="final">
+  <h2>Nalezené trasy výroby</h2>
+  <div id="log"></div>
+  <div class="actions"><button class="sec" id="clear">Smazat tabulku</button></div>
+</section>
+</main>
+
+<script>
+const P={CZ:{n:"Česko",x:185,y:98},TR:{n:"Turecko",x:292,y:173},IN:{n:"Indie",x:577,y:275},BD:{n:"Bangladéš",x:653,y:275}};
+const D={"CZ-TR":2000,"CZ-IN":6000,"CZ-BD":7000,"TR-IN":4500,"TR-BD":5500,"IN-BD":1500};
+const dist=(a,b)=>a===b?0:(D[a+"-"+b]||D[b+"-"+a]);
+const proj=p=>[Math.round(6.3333*p[0]+83.33),Math.round(6.8*(60-p[1])+30)].join(",");
+const poly=(pts,c)=>`<polygon class="${c}" points="${pts.map(proj).join(" ")}"/>`;
+const EURASIA=[[-9,43],[-9,37],[-5.5,36],[-2,36.8],[0,38.5],[3,42],[7,43.5],[8.5,44.4],[10,44],[11,42.5],[12.5,41.5],[15,40],[15.7,38],[16.5,39],[16.5,40],[18.5,40.2],[16,41.8],[14,42.3],[12.5,44],[12.3,45],[13.7,45.7],[15,44],[17.5,43],[19.5,42],[19.5,40.5],[21,39.5],[22,36.5],[23.5,37.8],[22.8,39.2],[24,40.3],[26,40.8],[26.5,39.5],[27,38],[28,36.7],[30.5,36.2],[34.5,36.7],[36,36.6],[36,35],[35,33],[34.7,31.5],[32.5,31.2],[32.6,30],[34,27.8],[35.5,24],[38,22],[40,19],[43,13.5],[45,12.8],[52,16],[57,19],[59.8,22.5],[56.5,24.6],[54,24.2],[51.5,24.6],[51.2,26],[49.5,27.5],[48,29.8],[50,30.3],[51,28],[54,26.5],[56.4,27.2],[58,25.6],[61.5,25.2],[66.5,25.4],[68.5,23.5],[70,21],[72.8,19],[73.8,16],[75,12],[77,8.2],[80,10],[80.3,13],[82,17],[85,19.8],[87,21.5],[89,21.8],[91,22.5],[92,21],[94.5,16],[97.5,16.3],[98.5,10],[99.5,7],[101,3],[103.5,1.5],[104,5],[101,6.5],[100.5,13.5],[103,11],[105,8.7],[106.5,10],[108,12],[109.3,12.5],[109,15],[107,17],[106,19],[108,21.5],[112,22],[125,30],[125,80],[40,80],[25,71],[15,68],[5,62],[5,58.5],[8,58],[10.5,59.5],[11,58],[12.5,56],[14,55.5],[16,56.2],[17,58.5],[19,60],[17.5,62],[21,64.5],[25,65.5],[21.5,61],[23,60],[30,60.3],[28,59.5],[23.5,59.3],[24,57.5],[21,57],[21,55],[19,54.4],[14,54],[12,54.2],[10.8,54],[10,56],[10.5,57.5],[8.5,57],[8.2,55.5],[8.6,54],[7,53.5],[5,53],[4,51.5],[1.5,50.9],[-1.5,48.7],[-4.5,48.4],[-1.5,46],[-1.5,43.5]];
+const AFRICA=[[-12,30],[-9.8,32],[-6,35.8],[-2,35.2],[3,36.8],[10,37.2],[11,35],[10,33.5],[15,32.3],[20,32],[20,30.5],[24,32],[29,31],[32,31.2],[32.6,30],[34,27.8],[35,24],[37.3,19],[39,15.5],[43,12.5],[44,11],[51,11.8],[51.3,10.5],[51,0],[-12,0]];
+const BRITAIN=[[-5.5,50],[1.5,51],[1.7,52.8],[0,53.5],[-2,56],[-2,57.6],[-3.5,58.6],[-6,58.3],[-5,56],[-3,54.8],[-4.5,53.3],[-5,51.7]];
+const IRELAND=[[-10,52],[-6,52.2],[-6,54.5],[-8,55],[-10,54]];
+const CEYLON=[[80,9.8],[81.8,7.5],[81,6],[80,6.2],[79.8,8]];
+const BLACKSEA=[[28,41.5],[28,43.5],[30,46],[33.5,46],[34.5,45],[36.5,45.2],[38,47],[40,43.5],[41.5,41.5],[37,41],[33,42],[31,41.2]];
+const CASPIAN=[[47,45],[49,46.5],[53,47],[53.5,44],[51,43],[51.5,40.5],[53.5,37.5],[50,37],[49,38.5],[48.5,41.5],[47.3,43]];
+const LAND=poly(EURASIA,"land")+poly(AFRICA,"land")+poly(BRITAIN,"land")+poly(IRELAND,"land")+poly(CEYLON,"land")+poly(BLACKSEA,"water")+poly(CASPIAN,"water");
+const STAGES=["Pěstování bavlny","Výroba látky","Ušití košile"];
+const COST=[{TR:20,IN:15},{CZ:60,TR:35,IN:30,BD:40},{CZ:90,TR:55,IN:35,BD:25}];
+const ROUNDS=[
+ {p:10,t:"Kolo 1",d:"Přeprava košile/materiálu stojí 10 Kč za 1000 km."},
+ {p:6,t:"Kolo 2",d:"Přeprava košile/materiálu stojí 6 Kč za 1000 km."},
+ {p:1,t:"Kolo 3",d:"Přeprava košile/materiálu stojí 1 Kč za 1000 km."}
+];
+let r=0;
+const sel=[null,null,null],solved=[false,false,false],shown=[null,null,null];
+let log=[];
+const $=id=>document.getElementById(id);
+function calc(c,p){
+  const prod=c.reduce((t,pl,i)=>t+COST[i][pl],0);
+  const legs=[[c[0],c[1]],[c[1],c[2]],[c[2],"CZ"]];
+  const km=legs.map(([a,b])=>dist(a,b));
+  const lc=km.map(k=>k*p/1000);
+  const tr=lc.reduce((t,x)=>t+x,0);
+  return {prod,tr,total:prod+tr,km,lc};
+}
+function best(p){
+  let b=null;
+  for(const a of Object.keys(COST[0]))for(const l of Object.keys(COST[1]))for(const s of Object.keys(COST[2])){
+    const v=calc([a,l,s],p);if(!b||v.total<b.v.total)b={c:[a,l,s],v};
+  }
+  return b;
+}
+const n1=n=>(Math.round(n*10)/10).toLocaleString("cs-CZ");
+const fmt=n=>n1(n)+" Kč";
+function renderTables(){
+  let h="<tr><th></th>"+Object.keys(P).map(k=>`<th class="n">${P[k].n}</th>`).join("")+"</tr>";
+  COST.forEach((row,i)=>{h+=`<tr><td>${STAGES[i]}</td>`+Object.keys(P).map(k=>`<td class="n">${row[k]!==undefined?row[k]:"nelze"}</td>`).join("")+"</tr>"});
+  $("costTable").innerHTML=h;
+  const ks=Object.keys(P);
+  let d="<tr><th></th>"+ks.map(k=>`<th class="n">${P[k].n}</th>`).join("")+"</tr>";
+  ks.forEach(a=>{d+=`<tr><td>${P[a].n}</td>`+ks.map(b=>`<td class="n">${a===b?"–":dist(a,b).toLocaleString("cs-CZ")}</td>`).join("")+"</tr>"});
+  $("distTable").innerHTML=d;
+}
+function renderSelects(){
+  [0,1,2].forEach(i=>{
+    $("s"+i).innerHTML=Object.keys(COST[i]).map(k=>`<option value="${k}">${P[k].n} (${COST[i][k]} Kč)</option>`).join("");
+  });
+}
+const AN={CZ:["middle",0],TR:["middle",0],IN:["end",8],BD:["start",-8]};
+function drawMap(c){
+  let s=LAND+'<g class="grid">';
+  for(let x=0;x<=800;x+=100)s+=`<line x1="${x}" y1="0" x2="${x}" y2="400"/>`;
+  for(let y=0;y<=400;y+=100)s+=`<line x1="0" y1="${y}" x2="800" y2="${y}"/>`;
+  s+="</g>";
+  const lines={CZ:[],TR:[],IN:[],BD:[]};
+  if(c){
+    const v=calc(c,ROUNDS[r].p),pts=[c[0],c[1],c[2],"CZ"];
+    c.forEach((pl,i)=>lines[pl].push(`${STAGES[i]}: ${COST[i][pl]} Kč`));
+    lines.CZ.push("Prodej košile");
+    for(let i=0;i<3;i++){
+      const a=P[pts[i]],b=P[pts[i+1]];
+      if(pts[i]===pts[i+1])continue;
+      const my=Math.min(a.y,b.y)-40;
+      s+=`<path class="leg" d="M${a.x} ${a.y} Q${(a.x+b.x)/2} ${my} ${b.x} ${b.y}"/>`;
+      s+=`<text class="legtxt" x="${(a.x+b.x)/2}" y="${my+18}" text-anchor="middle">Doprava ${v.km[i].toLocaleString("cs-CZ")} km: ${fmt(v.lc[i])}</text>`;
+    }
+  }
+  Object.keys(P).forEach(k=>{
+    const q=P[k],[an,dx]=AN[k];
+    s+=`<g class="place${k==="CZ"?" market":""}"><circle cx="${q.x}" cy="${q.y}" r="11"/><text x="${q.x+dx}" y="${q.y+30}" text-anchor="${an}">${q.n}${k==="CZ"?" (trh)":""}</text>`;
+    lines[k].forEach((t,i)=>{s+=`<text class="detail" x="${q.x+dx}" y="${q.y+46+i*15}" text-anchor="${an}">${t}</text>`});
+    s+="</g>";
+  });
+  $("map").innerHTML=s;
+}
+function renderRounds(){
+  $("rounds").innerHTML=ROUNDS.map((x,i)=>`<button type="button" class="chip${i===r?" on":""}${solved[i]?" done":""}" data-r="${i}" aria-pressed="${i===r}">Kolo ${i+1}${solved[i]?" ✓":""} (${x.p} Kč / 1000 km)</button>`).join("");
+  $("roundTitle").textContent=ROUNDS[r].t;
+  $("roundText").textContent=ROUNDS[r].d;
+}
+function go(n){
+  r=n;
+  [0,1,2].forEach(i=>{$("s"+i).value=sel[r]?sel[r][i]:$("s"+i).options[0].value});
+  const box=$("result");
+  if(shown[r]){box.className=shown[r].cls;box.innerHTML=shown[r].html}else box.className="result hidden";
+  renderRounds();drawMap(sel[r]);
+}
+function pick(){return [0,1,2].map(i=>$("s"+i).value)}
+function onCheck(){
+  const c=pick(),p=ROUNDS[r].p,v=calc(c,p),b=best(p);
+  sel[r]=c;drawMap(c);
+  const ok=Math.abs(v.total-b.v.total)<0.01;
+  if(ok)solved[r]=true;
+  if(!log.some(e=>e.r===r&&e.c.join()===c.join()))log.push({r,c,v});
+  const html=`<div class="split"><div>Výroba<b>${fmt(v.prod)}</b></div><div>Doprava<b>${fmt(v.tr)}</b></div><div>Celkem<b>${fmt(v.total)}</b></div></div>`+
+   (ok?`<p style="margin-top:10px"><strong>Toto je nejlevnější varianta.</strong></p>`
+      :`<p style="margin-top:10px">Existuje ještě levnější varianta.</p>`);
+  shown[r]={cls:"result "+(ok?"ok":"bad"),html};
+  $("result").className=shown[r].cls;$("result").innerHTML=html;
+  renderRounds();renderLog();
+}
+function renderLog(){
+  const mins={},cnt={};
+  log.forEach(e=>{cnt[e.r]=(cnt[e.r]||0)+1;if(!(e.r in mins)||e.v.total<mins[e.r])mins[e.r]=e.v.total});
+  let out="";
+  ROUNDS.forEach((R,ri)=>{
+    const rows=log.map((e,i)=>({e,i})).filter(x=>x.e.r===ri);
+    out+=`<h2 style="margin:${ri?"18px":"0"} 0 6px">Kolo ${ri+1}</h2><div class="scroll"><table><tr><th>Trasa</th><th class="n">Pěstování bavlny</th><th class="n">Doprava bavlny</th><th class="n">Výroba látky</th><th class="n">Doprava látky</th><th class="n">Ušití košile</th><th class="n">Doprava košile</th><th class="n">Celkem</th><th></th></tr>`;
+    if(!rows.length)out+='<tr><td colspan="9" class="muted">Zatím žádná varianta.</td></tr>';
+    rows.forEach(({e,i})=>{
+      const v=e.v,c=e.c,isBest=Math.abs(v.total-best(ROUNDS[ri].p).v.total)<0.01,min=!isBest&&Math.abs(v.total-mins[ri])<0.01&&cnt[ri]>1;
+      out+=`<tr class="${isBest?"best":min?"mid":""}"><td>${c.map(k=>P[k].n).join(" → ")}</td><td class="n">${COST[0][c[0]]}</td><td class="n">${n1(v.lc[0])}</td><td class="n">${COST[1][c[1]]}</td><td class="n">${n1(v.lc[1])}</td><td class="n">${COST[2][c[2]]}</td><td class="n">${n1(v.lc[2])}</td><td class="n"><b>${n1(v.total)}</b>${isBest?'<span class="tag">nejlevnější</span>':min?'<span class="tag">zatím nejlevnější</span>':""}</td><td><button type="button" class="x" data-i="${i}" aria-label="Smazat řádek">×</button></td></tr>`;
+    });
+    out+="</table></div>";
+  });
+  $("log").innerHTML=out;
+}
+renderTables();renderSelects();renderRounds();drawMap(null);renderLog();
+$("check").onclick=onCheck;
+$("rounds").onclick=e=>{const b=e.target.closest("button[data-r]");if(b)go(+b.dataset.r)};
+$("log").onclick=e=>{const b=e.target.closest("button[data-i]");if(b){log.splice(+b.dataset.i,1);renderLog()}};
+$("clear").onclick=()=>{log=[];renderLog()};
+[0,1,2].forEach(i=>$("s"+i).onchange=()=>{$("result").className="result hidden";shown[r]=null});
+</script>
+</body>
+</html>
